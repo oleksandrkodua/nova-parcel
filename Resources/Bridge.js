@@ -1,6 +1,7 @@
 // Local companion to the official Nova Poshta web cabinet.
 // Credentials stay inside the official origin's WebKit storage. Only a minimal
 // parcel snapshot and an account identifier leave the page. No write API calls.
+// The result also carries `diagnostics`: plain counts only, never TTNs or PII.
 window.novaParcelSync = async function (extraNumbers, previousAccount) {
     if (location.origin !== 'https://new.novaposhta.ua') return {kind: 'login'};
     const token = localStorage.getItem('access_token');
@@ -60,6 +61,7 @@ window.novaParcelSync = async function (extraNumbers, previousAccount) {
         // Older callers may still supply plain TTNs; their direction is unknown.
         if (typeof number === 'string' && /^\d{14}$/.test(number)) numbers.set(number, ['incoming', 'outgoing'].includes(item?.direction) ? item.direction : '');
     }
+    const diagnostics = {listed: {incoming: 0, outgoing: 0}, skippedNoNumber: 0, requested: 0, statusRows: 0, unmatched: 0, statusCodes: {}};
     try {
         for (const [method, direction] of [['getIncomingDocumentsByPhone', 'incoming'], ['getOutgoingDocumentsByPhone', 'outgoing']]) {
             let complete = false;
@@ -73,9 +75,11 @@ window.novaParcelSync = async function (extraNumbers, previousAccount) {
                 // filter below. Only a page where no row carries a number at all
                 // means the cabinet's format actually changed.
                 if (list.length && list.every(row => !row || !(row.Number || row.IntDocNumber || row.DocumentNumber))) throw Error('Формат списку посилок змінився.');
+                diagnostics.listed[direction] += list.length;
                 for (const row of list) {
                     const number = String(row.Number || row.IntDocNumber || row.DocumentNumber || '');
-                    if (/^\d{14}$/.test(number)) {
+                    if (!/^\d{14}$/.test(number)) diagnostics.skippedNoNumber++;
+                    else {
                         numbers.set(number, direction);
                         const description = parcelDescription(row);
                         if (description) descriptions.set(number, description);
@@ -87,14 +91,16 @@ window.novaParcelSync = async function (extraNumbers, previousAccount) {
             if (!complete) throw Error('Забагато посилок для однієї синхронізації.');
         }
         const entries = [...numbers.keys()];
+        diagnostics.requested = entries.length;
         const rows = [];
         for (let start = 0; start < entries.length; start += 100) {
             const body = await request('TrackingDocument', 'getStatusDocuments', {
                 Documents: entries.slice(start, start+100).map(DocumentNumber => ({DocumentNumber})), Language: 'UA'
             });
+            diagnostics.statusRows += body.data.length;
             for (const row of body.data) {
                 const docNumber = String(row.Number || row.IntDocNumber || '');
-                if (!numbers.has(docNumber)) continue;
+                if (!numbers.has(docNumber)) { diagnostics.unmatched++; continue; }
                 const minimal = {Number: docNumber, direction: numbers.get(docNumber)};
                 // The cabinet list often contains the sender's description,
                 // while the tracking response omits it. Join by TTN before
@@ -104,10 +110,13 @@ window.novaParcelSync = async function (extraNumbers, previousAccount) {
                 for (const key of ['Status','StatusCode','CitySender','WarehouseRecipient','RecipientAddress','CityRecipient','ScheduledDeliveryDate','CargoDescriptionString']) {
                     if (typeof row[key] === 'string' || typeof row[key] === 'number') minimal[key] = String(row[key]);
                 }
+                // Only short numeric codes are counted as keys; anything else is bucketed.
+                const code = /^\d{1,3}$/.test(minimal.StatusCode || '') ? minimal.StatusCode : minimal.StatusCode ? 'other' : 'none';
+                diagnostics.statusCodes[code] = (diagnostics.statusCodes[code] || 0) + 1;
                 rows.push(minimal);
             }
         }
-        return {kind: 'success', accountID: String(claims.sub), rows};
+        return {kind: 'success', accountID: String(claims.sub), rows, diagnostics};
     } catch (e) {
         if (e.message === 'SESSION_EXPIRED') return {kind: 'expired'};
         return {kind: 'error', message: e.name === 'AbortError' ? 'Запит тривав надто довго. Спробуйте ще раз.' : e.message};

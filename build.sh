@@ -11,6 +11,8 @@ xcrun swiftc -swift-version 5 -O -module-cache-path "$BUILD_DIR/cache" -target a
 cp Resources/Bridge.js "$APP_DIR/Contents/Resources/Bridge.js"
 cp Resources/Info.plist "$APP_DIR/Contents/Info.plist"
 if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns "$APP_DIR/Contents/Resources/"; fi
+# Finder attaches extended attributes under ~/Desktop; strict codesign rejects them.
+xattr -cr "$APP_DIR"
 codesign --force --sign - "$APP_DIR"
 codesign --verify --strict "$APP_DIR"
 echo "Built: $APP_DIR"

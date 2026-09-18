@@ -87,9 +87,11 @@ class Tracker extends EventEmitter {
     try { this.persist({ parcels: this.parcels, accountID: this.accountID, lastRefresh: this.lastRefresh }); }
     catch { this.error = 'Не вдалося зберегти посилки на цьому комп’ютері.'; }
   }
-  apply(rows, accountID = this.accountID) {
+  apply(rows, accountID = this.accountID, diagnostics) {
     if (!Array.isArray(rows)) throw Error('Формат відповіді Нової пошти змінився.');
     const incoming = rows.map(row => fromRow(row, this.now())).filter(Boolean);
+    // Counts only (see Bridge.js); safe to log.
+    if (diagnostics) console.info('sync diagnostics', JSON.stringify(diagnostics), 'rejectedByFromRow=' + (rows.length - incoming.length));
     if (rows.length && !incoming.length) throw Error('Формат статусів змінився. Збережені дані залишилися без змін.');
     const switched = accountID !== this.accountID;
     // Manually added parcels belong to the person, not to the account, so they
@@ -113,7 +115,7 @@ class Tracker extends EventEmitter {
         if (generation !== this.generation) return;
         if (result?.kind === 'success') {
           if (typeof result.accountID !== 'string' || !result.accountID) throw Error('Неповна відповідь кабінету.');
-          this.apply(result.rows, result.accountID);
+          this.apply(result.rows, result.accountID, result.diagnostics);
           const wasAwaiting = this.awaitingLogin;
           this.awaitingLogin = false; this.refreshingSession = false;
           if (wasAwaiting) this.emit('signed-in');

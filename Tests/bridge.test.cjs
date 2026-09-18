@@ -61,5 +61,10 @@ function context({ origin = 'https://new.novaposhta.ua', subject = 'account-a', 
   assert.equal(r.kind,'success'); assert.equal(r.rows.length,1); assert.equal(r.rows[0].Number,'20450000000001'); checks++;
   c=context({incoming:[{Description:'Чернетка без номера'}]});
   r=await c.sync([], 'account-a'); assert.equal(r.kind,'error'); checks++;
+  // Diagnostics: counts only, no identifiers.
+  c=context({incoming:[{Number:'20450000000001'}, {Description:'Чернетка без номера'}], outgoing:[{Number:'20450000000003'}]});
+  r=await c.sync(['20450000000009'], 'account-a');
+  assert.deepEqual(JSON.parse(JSON.stringify(r.diagnostics)), {listed:{incoming:2,outgoing:1}, skippedNoNumber:1, requested:3, statusRows:3, unmatched:0, statusCodes:{'5':3}}); checks++;
+  assert(!/\d{14}|PRIVATE_|Чернетка|secret/.test(JSON.stringify(r.diagnostics))); checks++;
   console.log(`Bridge: ${checks} checks passed`);
 })().catch(e=>{console.error(e); process.exitCode=1});

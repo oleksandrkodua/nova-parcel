@@ -1,10 +1,11 @@
 import SwiftUI
 import AppKit
 
-private let accent = Color(red: 0.96, green: 0.27, blue: 0.23)
-private let ink = Color(red: 0.12, green: 0.13, blue: 0.16)
-private let secondary = Color(red: 0.45, green: 0.47, blue: 0.50)
-private let canvas = Color(red: 0.965, green: 0.957, blue: 0.945)
+private let accent = Color(red: 0.855, green: 0.161, blue: 0.110)
+private let ink = Color.black
+private let secondary = Color(red: 0.278, green: 0.333, blue: 0.412)
+private let canvas = Color(red: 0.965, green: 0.965, blue: 0.976)
+private let deliveredGreen = Color(red: 0.082, green: 0.502, blue: 0.239)
 
 struct WidgetView: View {
     @ObservedObject var store: ParcelStore
@@ -27,10 +28,10 @@ struct WidgetView: View {
     }
     private var header: some View {
         HStack(spacing: 10) {
-            ZStack { RoundedRectangle(cornerRadius: 11).fill(accent).frame(width: 36, height: 36)
-                Image(systemName: "shippingbox.fill").font(.system(size: 17, weight: .semibold)).foregroundStyle(.white) }
+            ZStack { RoundedRectangle(cornerRadius: 9).fill(accent).frame(width: 28, height: 28)
+                Image(systemName: "shippingbox.fill").font(.system(size: 14, weight: .semibold)).foregroundStyle(.white) }
             VStack(alignment: .leading, spacing: 2) {
-                Text("Nova Parcel").font(.system(size: 14, weight: .bold))
+                Text("Nova Parcel").font(.system(size: 13, weight: .bold)).tracking(-0.3)
                 Text("НОВА ПОШТА · НЕОФІЦІЙНИЙ ВІДЖЕТ").font(.system(size: 8, weight: .medium, design: .monospaced)).tracking(0.5).foregroundStyle(secondary)
             }
             Spacer()
@@ -40,12 +41,12 @@ struct WidgetView: View {
                 .buttonStyle(.plain).help("Налаштування").accessibilityLabel("Налаштування")
             Button { store.onClose?() } label: { Image(systemName: "xmark").foregroundStyle(secondary) }
                 .buttonStyle(.plain).help("Закрити вікно · застосунок лишається в рядку меню").accessibilityLabel("Закрити вікно")
-        }.padding(.horizontal, 24).padding(.top, 18).padding(.bottom, 18)
+        }.padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 8)
     }
     private var onboarding: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack { Text("ВАША ДОСТАВКА, ПОРУЧ").font(.system(size: 9, weight: .semibold, design: .monospaced)).tracking(2).foregroundStyle(accent); Spacer() }
-            Text("Посилки.\nПід контролем.").font(.system(size: 37, weight: .bold, design: .rounded)).tracking(-1.5).lineSpacing(-1).padding(.top, 12)
+            Text("Посилки.\nПід контролем.").font(.system(size: 37, weight: .bold)).tracking(-1.5).lineSpacing(-1).padding(.top, 12)
             Text("Увійдіть до Нової пошти — і відстежуйте\nсвої посилки просто з робочого столу.").font(.system(size: 13)).foregroundStyle(secondary).lineSpacing(5).padding(.top, 12)
             HStack(spacing: 14) {
                 ZStack {
@@ -69,21 +70,21 @@ struct WidgetView: View {
     private var parcelList: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
-                Text(store.selectedDirection == "outgoing" ? "Відправлення" : "Отримання").font(.system(size: 26, weight: .bold, design: .rounded)).tracking(-0.8)
+                Text(store.selectedDirection == "outgoing" ? "Відправлення" : "Отримання").font(.system(size: 20, weight: .bold)).tracking(-0.3)
                 Spacer()
                 Button { showAdd = true } label: { Image(systemName: "plus").font(.system(size: 17)).foregroundStyle(secondary) }.buttonStyle(.plain).accessibilityLabel("Додати ТТН")
-            }.padding(.horizontal, 24)
+            }.padding(.horizontal, 20)
             HStack(spacing: 4) {
                 directionTab("Отримання", direction: "incoming", symbol: "arrow.down.left")
                 directionTab("Відправлення", direction: "outgoing", symbol: "arrow.up.right")
-            }.padding(4).background(ink.opacity(0.045), in: RoundedRectangle(cornerRadius: 12)).padding(.horizontal, 24)
+            }.padding(3).background(.white, in: RoundedRectangle(cornerRadius: 12)).padding(.horizontal, 20)
             HStack {
                 Label(store.connected ? "Акаунт підключено" : "Відстеження за ТТН", systemImage: store.connected ? "checkmark.shield" : "number")
                     .font(.system(size: 10)).foregroundStyle(secondary)
                 Spacer()
                 Button { store.showCompleted.toggle() } label: { Text(store.showCompleted ? "Лише активні" : "Усі посилки").font(.system(size: 10)).foregroundStyle(secondary) }.buttonStyle(.plain)
-            }.padding(.horizontal, 24)
-            if let error = store.error { errorBanner(error).padding(.horizontal, 24) }
+            }.padding(.horizontal, 20)
+            if let error = store.error { errorBanner(error).padding(.horizontal, 20) }
             ScrollViewReader { reader in
             ScrollView {
                 LazyVStack(spacing: 8) {
@@ -95,7 +96,7 @@ struct WidgetView: View {
                         }.frame(maxWidth: .infinity).padding(.vertical, 60)
                     }
                     ForEach(store.visibleParcels) { parcel in ParcelCard(parcel: parcel) }
-                }.padding(.horizontal, 24).padding(.top, 4).padding(.bottom, 16)
+                }.padding(.horizontal, 20).padding(.top, 2).padding(.bottom, 12)
             }
             .onChange(of: store.focusedParcelID) { _, id in if let id { reader.scrollTo(id, anchor: .top) } }
             .onChange(of: store.selectedDirection) { _, _ in if let first = store.visibleParcels.first { reader.scrollTo(first.id, anchor: .top) } }
@@ -103,7 +104,7 @@ struct WidgetView: View {
             if !store.notificationsGranted {
                 Button { store.enableNotifications() } label: {
                     Label("Увімкнути сповіщення про зміни", systemImage: "bell.badge").font(.system(size: 11, weight: .medium)).foregroundStyle(accent).frame(maxWidth: .infinity).padding(12)
-                }.buttonStyle(.plain).padding(.horizontal, 24).background(.white.opacity(0.4))
+                }.buttonStyle(.plain).padding(.horizontal, 20).background(.white.opacity(0.4))
             }
         }
     }
@@ -113,9 +114,9 @@ struct WidgetView: View {
                 Image(systemName: symbol).font(.system(size: 10, weight: .semibold))
                 Text(title).font(.system(size: 11, weight: .semibold))
                 Text("\(store.activeCount(direction))").font(.system(size: 10, weight: .bold)).foregroundStyle(accent)
-            }.frame(maxWidth: .infinity).padding(.vertical, 10)
+            }.frame(maxWidth: .infinity).padding(.vertical, 7)
                 .foregroundStyle(store.selectedDirection == direction ? ink : secondary)
-                .background(store.selectedDirection == direction ? Color.white : Color.clear, in: RoundedRectangle(cornerRadius: 9))
+                .background(store.selectedDirection == direction ? canvas : Color.clear, in: RoundedRectangle(cornerRadius: 9))
         }.buttonStyle(.plain).accessibilityLabel(title).accessibilityAddTraits(store.selectedDirection == direction ? .isSelected : [])
     }
     private var footer: some View {
@@ -129,7 +130,7 @@ struct WidgetView: View {
                 Spacer()
                 Button { Task { await store.refresh(force: true) } } label: { Image(systemName: "arrow.clockwise").font(.system(size: 12)) }
                     .buttonStyle(.plain).disabled(store.busy || store.isDemo).help("Оновити").accessibilityLabel("Оновити")
-            }.font(.system(size: 10)).foregroundStyle(secondary).padding(.horizontal, 24).padding(.vertical, 15)
+            }.font(.system(size: 10)).foregroundStyle(secondary).padding(.horizontal, 20).padding(.vertical, 10)
         }
     }
     private func errorBanner(_ message: String) -> some View {
@@ -142,17 +143,19 @@ struct WidgetView: View {
 
 struct ParcelCard: View {
     let parcel: Parcel
-    private var color: Color { parcel.isReady ? accent : parcel.isDelivered ? .green : ink }
+    private var color: Color { parcel.isReady ? accent : parcel.isDelivered ? deliveredGreen : parcel.phase == 0 ? secondary : ink }
+    // Stage titles are stored in capitals; the pill shows them in sentence case.
+    private func sentenceCase(_ text: String) -> String { let lower = text.lowercased(); return lower.prefix(1).uppercased() + lower.dropFirst() }
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
-                Image(systemName: parcel.symbol).font(.system(size: 12)).foregroundStyle(color)
-                Text(parcel.stageTitle).font(.system(size: 9, weight: .bold, design: .monospaced)).tracking(1)
+                Text(sentenceCase(parcel.stageTitle)).font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(color).lineLimit(1).minimumScaleFactor(0.8)
+                    .padding(.horizontal, 7).padding(.vertical, 2).background(color.opacity(0.10), in: Capsule())
                 Spacer()
                 Image(systemName: parcel.isOutgoing ? "arrow.up.right" : "arrow.down.left").font(.system(size: 10)).foregroundStyle(secondary)
             }
-            Text(parcel.title).font(.system(size: 14, weight: .semibold, design: .rounded)).lineLimit(2).help(parcel.title)
+            Text(parcel.title).font(.system(size: 13, weight: .semibold)).tracking(-0.3).lineLimit(2).help(parcel.title)
             // A delivered parcel's bar is always full and its destination is
             // already behind it, so both are dropped to keep the row short.
             if !parcel.isDelivered {
@@ -176,8 +179,7 @@ struct ParcelCard: View {
                 Text("Статус може бути застарілим").font(.system(size: 10)).foregroundStyle(.orange)
             }
         }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
-            .background(.white.opacity(0.9), in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(parcel.isReady ? accent.opacity(0.22) : ink.opacity(0.055), lineWidth: 1))
+            .background(.white, in: RoundedRectangle(cornerRadius: 12))
             .contextMenu { Button("Скопіювати ТТН") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(parcel.id, forType: .string) } }
     }
 }
@@ -190,7 +192,7 @@ struct AddParcelView: View {
     @State var direction: String
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("Додати посилку").font(.system(size: 22, weight: .bold, design: .rounded))
+            Text("Додати посилку").font(.system(size: 22, weight: .bold))
             Picker("Напрямок", selection: $direction) {
                 Text("Отримання").tag("incoming")
                 Text("Відправлення").tag("outgoing")
@@ -213,7 +215,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) var dismiss
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            HStack { Text("Налаштування").font(.system(size: 22, weight: .bold, design: .rounded)); Spacer(); Button("Готово") { dismiss() }.keyboardShortcut(.cancelAction) }
+            HStack { Text("Налаштування").font(.system(size: 22, weight: .bold)); Spacer(); Button("Готово") { dismiss() }.keyboardShortcut(.cancelAction) }
             // Dismissing and quitting must stay reachable: a demo run disables the
             // settings themselves, never the way out of this sheet.
             Group {

@@ -2,6 +2,7 @@ import Foundation
 import AppKit
 import Combine
 import UserNotifications
+import os
 import ServiceManagement
 
 @MainActor
@@ -103,6 +104,13 @@ final class ParcelStore: NSObject, ObservableObject, UNUserNotificationCenterDel
                     accountID = newID; connected = true; awaitingLogin = false; refreshingSession = false
                     loginTimer?.invalidate(); loginTimer = nil
                     let incoming = rows.compactMap { Parcel.from($0, direction: $0["direction"] as? String ?? "") }
+                    if let d = result["diagnostics"] as? [String: Any],
+                       let data = try? JSONSerialization.data(withJSONObject: d, options: .sortedKeys),
+                       let text = String(data: data, encoding: .utf8) {
+                        // Counts only (see Bridge.js); safe to log unredacted.
+                        Logger(subsystem: "ua.local.novaparcel", category: "sync")
+                            .info("sync diagnostics: \(text, privacy: .public) rejectedByParcelFrom=\(rows.count - incoming.count, privacy: .public)")
+                    }
                     guard rows.isEmpty || !incoming.isEmpty else { throw TrackingError.message("Формат статусів змінився. Збережені дані залишилися без змін.") }
                     merge(incoming)
                     if wasAwaitingLogin { auth.hideLogin() }
